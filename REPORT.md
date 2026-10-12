@@ -30,12 +30,20 @@ Bronze giữ hai bảng riêng (`raw_telemetry_a`, `raw_telemetry_b`) để khô
 ### Câu 2
 Pipeline đưa hai nguồn về một schema như thế nào (đơn vị, kiểu thời gian, **độ lệch đồng hồ**)? Bằng chứng nào trong kết quả bước 2 cho thấy đã đúng? Dán bảng quarantine của bạn (số dòng theo từng lý do, từng drive) và giải thích vì sao dòng lỗi vào `rejects` thay vì bị xoá.
 
-(trả lời ở đây)
+Staging đưa A từ `ts_utc` ISO UTC và `speed_mps` sang schema chung; B đổi `timestamp_ms` sang timestamp, trừ độ lệch đồng hồ 1.500 ms, đổi tên các trường và chuyển `spd_kmh` sang m/s bằng cách chia 3,6. Thời điểm đầu B sau hiệu chỉnh là `2025-10-08 14:30:00.009 UTC`, chỉ lệch 9 ms so với video bắt đầu lúc `14:30:00 UTC`.
+
+| Lý do quarantine | Drive A | Drive B |
+|---|---:|---:|
+| Trùng (`duplicate`) | 20 | 20 |
+| Thiếu tốc độ (`speed_missing`) | 30 | 30 |
+| Tốc độ ngoài khoảng (`speed_out_of_range`) | 3 | 3 |
+
+Mỗi drive có 53 dòng bị cách ly; còn lại A 2.968 và B 3.181 dòng sạch. Tổng sạch + quarantine khớp số dòng nhận vào (3.021 và 3.234). Giữ lỗi trong `silver_telemetry_rejects` kèm lý do giúp truy vết chất lượng nguồn và tránh mất dữ liệu âm thầm.
 
 ### Câu 3
 Vì sao test `max_gap_ms` là `warn` còn `in_range` là `error`? Kết quả thí nghiệm `break-gate` của bạn (`break_gate.json`): test nào bắt được, bao nhiêu dòng, và điều đó cho biết gì về vai trò của "cổng chất lượng"?
 
-(trả lời ở đây)
+`max_gap_ms` đặt `severity: warn` vì khoảng trống cảm biến cần được báo để theo dõi nhưng không nhất thiết chặn dữ liệu còn hợp lệ. `in_range` để mặc định `error` vì tốc độ ngoài giới hạn là dữ liệu vô lý không nên đi tiếp. Trong `break_gate.json`, nới giới hạn lên 1.000 m/s khiến test `in_range_silver_telemetry_speed_mps__70__0` bắt được 6 dòng: kết quả là `PASS=5 WARN=1 ERROR=1`. Khôi phục giới hạn gốc cho `PASS=6 WARN=1 ERROR=0`, cho thấy quality gate chặn lỗi nghiêm trọng trong khi vẫn giữ cảnh báo về mất tín hiệu.
 
 ## Bước 3 · Silver frames
 
