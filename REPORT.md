@@ -4,15 +4,15 @@
 
 | | |
 |---|---|
-| Họ và tên | `<điền>` |
-| MSSV (đúng bằng `LAB_STUDENT_ID` trong `.env`) | `<điền>` |
-| GitHub | `<điền: tên tài khoản>` |
+| Họ và tên | `Vũ Hải Minh` |
+| MSSV (đúng bằng `LAB_STUDENT_ID` trong `.env`) | `2A202602452` |
+| GitHub | `dtc-z` |
 | Trip dùng cho bài tập sập và chạy lại (xem GUIDE, bước 5) | `<điền: trip-xxxxx>` |
 
 ## Kết quả cuối
 
-- `dataset_version` của bạn: `<điền>`  (phải khớp `report/evidence/run_summary.json`)
-- Số khung hình train / val / test của bạn: `<điền>`
+- `dataset_version` của bạn: `0739495c79d9`  (phải khớp `report/evidence/run_summary.json`)
+- Số khung hình train / val / test của bạn: `716 / 158 / 145` (tổng `1.019`)
 - `report/verify.txt`: tạo bằng `python3 scripts/check_submission.py --save-verify` (phải có `27/27 checks passed`).
 - Ảnh chụp trong `report/screenshots/`: `airflow_graph.png`, `minio_lake.png`, `metabase_dashboard.png`, và ảnh bài tập sập/chạy lại (log task đỏ thấy trip của bạn).
 
@@ -21,7 +21,9 @@
 ### Câu 1
 Liệt kê **ít nhất 4 khác biệt** giữa telemetry nguồn A và nguồn B mà bạn thấy ở bronze. Vì sao pipeline giữ **mỗi nguồn một bảng bronze** và để mọi cột ở dạng chữ, thay vì gộp và ép kiểu ngay?
 
-(trả lời ở đây)
+Nguồn A (`drive_a`, 3.021 dòng) dùng `ts_utc` dạng ISO UTC và `speed_mps` (m/s); nguồn B (`drive_b`, 3.234 dòng) dùng `timestamp_ms` dạng epoch milliseconds và `spd_kmh` (km/h). Schema cũng đổi tên nhiều trường tương đương: `heading_deg`/`hdg`, `lat`–`lon`/`latitude`–`longitude`, `alt_m`/`altitude`, `acc_x`–`acc_y`/`ax`–`ay`, `gas`/`throttle_pct`, `brake`/`brake_pct`, `steer`/`steering`; B còn biểu diễn bàn đạp theo phần trăm.
+
+Bronze giữ hai bảng riêng (`raw_telemetry_a`, `raw_telemetry_b`) để không làm mất schema và giá trị nguồn khi hai producer chưa thống nhất. Các trường lấy từ CSV, kể cả timestamp, số đo và ô trống, được giữ nguyên dưới dạng chuỗi; chỉ metadata ingest như `_row_no` và `_ingested_at` có kiểu riêng. Việc chuẩn hoá tên cột, đơn vị và thời gian để Silver xử lý sau, có thể kiểm tra lại từ dữ liệu gốc. Nạp lặp lại, file được nhận diện theo SHA-256 nên báo `already present`; bảng `bronze.raw_telemetry_a` vẫn chỉ có một commit Delta. Video gốc nằm ở `bronze/video/<drive>/raw.mp4`, còn `bronze.video_files` lưu con trỏ cùng SHA-256.
 
 ## Bước 2 · Silver telemetry
 
