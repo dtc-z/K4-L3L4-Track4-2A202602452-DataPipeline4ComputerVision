@@ -68,17 +68,19 @@ Khung đen có độ sáng dưới ngưỡng `dark_luma` nên bị loại khỏi
 ### Câu 6
 Dựa vào `leakage.json`: chia theo khung hình làm bao nhiêu trip bị chia cắt, so với chia theo trip? Vì sao điều này làm điểm kiểm thử đẹp một cách giả tạo?
 
-(trả lời ở đây)
+Trên 1.019 khung thuộc 26 trip, phép chia ngẫu nhiên theo khung làm cả 26 trip xuất hiện ở nhiều split; cả 26 còn có khung ở train lẫn test. Chia theo trip làm 0 trip bị tách. Khung gần nhau thường rất giống nhau, nên chia theo khung đưa cảnh gần như đã thấy vào test và khiến điểm đánh giá trông tốt hơn khả năng tổng quát trên trip mới.
 
 ### Câu 7
 Vì sao `dataset_version` là **băm nội dung** chứ không phải ngày giờ hay số đếm? Hai lần chạy liên tiếp cho kết quả gì? Vì sao `dataset_version` của bạn **khác** bạn bè dù cùng dữ liệu (liên hệ MSSV)?
 
-(trả lời ở đây)
+`dataset_version` là 12 ký tự đầu của SHA-256 trên danh sách đã sắp xếp `frame_id|split`, nên cùng nội dung cho cùng phiên bản, không đổi chỉ vì thời gian chạy hoặc số dòng tình cờ bằng nhau. Lần export trong bước 4 và lần chạy lại đều cho `0739495c79d9`, 1.019 khung, train/val/test `716/158/145`. MSSV được trộn vào thứ tự xếp trip theo MD5; MSSV khác có thể đổi trip nằm trong từng split, làm nội dung và version thay đổi.
 
 ### Câu 8
 Đọc phần `lineage` trong `manifest.json` của dataset bạn. Trả lời "dataset này được tạo từ dữ liệu nào?" bằng chính nội dung đó. Nếu một người hỏi 3 tháng sau, thông tin nào giúp tái tạo lại đúng dataset này?
 
-(trả lời ở đây)
+Manifest của `0739495c79d9` ghi 1.019 khung (716/158/145) và lineage: `bronze.raw_telemetry_a` v0, `bronze.raw_telemetry_b` v0, `bronze.trips_raw` v0, `bronze.video_files` v1; `silver.frames` v83, `silver.telemetry` v1, `silver.frames_flagged` v2, `silver.frame_telemetry` v2. SHA-256 video đầu vào: drive A `636ba1a98dfc5ba665d1c935e1d2064e69f4df360ff9ffbd15795957d5e7e9aa`, drive B `bfa62703f645ff77a8578ae3fc74a00881140d38a404d43c8e2af265bbee9fdc`.
+
+Để tái tạo, cần giữ các version Delta và video đúng SHA-256, cùng luật lọc khung đen/mờ/trùng/mất đồng bộ, cách chia theo trip và `LAB_STUDENT_ID=2A202602452`. Manifest ghi checksum Parquet `1012300a27fcc7102a64ce9489ab03ca4accb2149604ffcc839a22ded378ab76` để đối chiếu nội dung xuất.
 
 ## Bước 5 · Điều phối và phục vụ
 
