@@ -1,13 +1,13 @@
 # REPORT — Lab Day 9
 
-> Điền **bằng lời và số liệu của chính bạn** (lấy từ đầu ra của `scripts/lab.sh step ...` và từ `report/evidence/*.json`). Bài làm công khai trên GitHub; giảng viên đối chiếu với lịch sử commit và với bài của các bạn khác. Mỗi câu 3 đến 8 dòng là đủ.
+> Số liệu trong báo cáo lấy từ lần chạy cuối, các file bằng chứng và manifest được sinh trong repo.
 
 | | |
 |---|---|
 | Họ và tên | `Vũ Hải Minh` |
 | MSSV (đúng bằng `LAB_STUDENT_ID` trong `.env`) | `2A202602452` |
 | GitHub | `dtc-z` |
-| Trip dùng cho bài tập sập và chạy lại (xem GUIDE, bước 5) | `<điền: trip-xxxxx>` |
+| Trip dùng cho bài tập sập và chạy lại (xem GUIDE, bước 5) | `trip-00003` |
 
 ## Kết quả cuối
 
@@ -78,7 +78,7 @@ Vì sao `dataset_version` là **băm nội dung** chứ không phải ngày gi�
 ### Câu 8
 Đọc phần `lineage` trong `manifest.json` của dataset bạn. Trả lời "dataset này được tạo từ dữ liệu nào?" bằng chính nội dung đó. Nếu một người hỏi 3 tháng sau, thông tin nào giúp tái tạo lại đúng dataset này?
 
-Manifest của `0739495c79d9` ghi 1.019 khung (716/158/145) và lineage: `bronze.raw_telemetry_a` v0, `bronze.raw_telemetry_b` v0, `bronze.trips_raw` v0, `bronze.video_files` v1; `silver.frames` v83, `silver.telemetry` v1, `silver.frames_flagged` v2, `silver.frame_telemetry` v2. SHA-256 video đầu vào: drive A `636ba1a98dfc5ba665d1c935e1d2064e69f4df360ff9ffbd15795957d5e7e9aa`, drive B `bfa62703f645ff77a8578ae3fc74a00881140d38a404d43c8e2af265bbee9fdc`.
+Manifest cuối của `0739495c79d9` ghi 1.019 khung (716/158/145) và lineage: `bronze.raw_telemetry_a` v0, `bronze.raw_telemetry_b` v0, `bronze.trips_raw` v0, `bronze.video_files` v1; `silver.frames` v25, `silver.telemetry` v0, `silver.frames_flagged` v0, `silver.frame_telemetry` v0. SHA-256 video đầu vào: drive A `636ba1a98dfc5ba665d1c935e1d2064e69f4df360ff9ffbd15795957d5e7e9aa`, drive B `bfa62703f645ff77a8578ae3fc74a00881140d38a404d43c8e2af265bbee9fdc`.
 
 Để tái tạo, cần giữ các version Delta và video đúng SHA-256, cùng luật lọc khung đen/mờ/trùng/mất đồng bộ, cách chia theo trip và `LAB_STUDENT_ID=2A202602452`. Manifest ghi checksum Parquet `1012300a27fcc7102a64ce9489ab03ca4accb2149604ffcc839a22ded378ab76` để đối chiếu nội dung xuất.
 
@@ -87,21 +87,33 @@ Manifest của `0739495c79d9` ghi 1.019 khung (716/158/145) và lineage: `bronze
 ### Câu 9
 Mô tả chính xác điều xảy ra khi trip của bạn sập rồi chạy lại: bao nhiêu task chuyển đỏ, bao nhiêu task `upstream_failed`, bạn clear gì, dữ liệu có nhân đôi không, `dataset_version` có đổi không? Bằng chứng (ảnh, số) là gì?
 
-(trả lời ở đây)
+Trong DAG `codex_step5_pipeline_20261012`, chỉ `silver_frames` map index 0 (trip `trip-00003`) chuyển đỏ; 25 mapped task còn lại thành công. Bảy task downstream (`dbt_run_silver`, `dbt_test_silver`, `dbt_run_gold`, `dbt_test_gold`, `publish_lake`, `export_dataset`, `publish_warehouse`) ở trạng thái `upstream_failed`. Mình clear đúng map index 0 và bảy downstream instance này; không clear các trip đã xong.
+
+Retry đưa cả DAG về xanh. `silver.frames` vẫn có 1.246 dòng, trip này có 60 khung và `frame_id` không trùng; dataset Gold vẫn 1.019 khung, `dataset_version` tiếp tục là `0739495c79d9`. `verify` đạt 27/27. Ảnh `airflow_crash.png` lưu log có dòng crash và trip; `airflow_graph.png` là Graph xanh sau retry.
 
 ### Câu 10
 Nâng từ 2 drive lên **500 xe mỗi ngày**: ba thành phần nào của pipeline này sẽ vỡ đầu tiên, và bạn thay bằng gì (nối với slide 12, 22, 23)?
 
-(trả lời ở đây)
+Ở mức 500 xe/ngày, ba giới hạn dễ gặp là: (1) giải mã video FFmpeg ngốn CPU, trong khi LocalExecutor hiện chỉ cho 2 task chạy đồng thời; tăng worker pool theo trip bằng Celery/KubernetesExecutor và autoscale. (2) MinIO một node phải nhận video, ghi frame và phục vụ đọc lại; chuyển sang object storage S3 phân tán có dung lượng/throughput mở rộng. (3) DuckDB cục bộ và Postgres đơn lẻ sẽ nghẽn khi dbt tổng hợp và nhiều dashboard truy vấn cùng lúc; dùng warehouse phân tán như BigQuery, Snowflake hoặc ClickHouse, kèm bảng incremental/partition. Đây là hướng mở rộng các lớp ingest, ELT và warehouse được nhắc ở slide 12, 22, 23.
 
 ## Câu hỏi riêng của bạn trên Metabase
 
 Câu SQL bạn thêm vào dashboard và điều nó cho biết:
 
-(trả lời ở đây)
+Mình thêm thẻ `Custom: Frames kept by trip` lên dashboard bằng SQL:
+
+```sql
+select drive_id, trip_id, frames, frames_kept,
+       round(100.0 * frames_kept / nullif(frames, 0), 1) as kept_pct,
+       split
+from marts.mart_trip_summary
+order by drive_id, trip_id
+```
+
+Thẻ đối chiếu tổng khung với số khung được giữ trong Gold cho từng trip, kèm tỷ lệ giữ lại và split. Ví dụ `drive_a / trip-00003` có 60 khung, giữ 46 (76,7%) và thuộc `train`; có thể so sánh mức loại giữa các chuyến.
 
 ## Nhìn lại
 
 Điều bạn thấy bất ngờ nhất, điều gì còn chưa rõ, và một lỗi dữ liệu mà bạn nghĩ pipeline **chưa** bắt được (nếu có). Tối đa 8 dòng.
 
-(trả lời ở đây)
+Điều bất ngờ nhất là chia ngẫu nhiên theo frame làm cả 26/26 trip xuất hiện ở cả train lẫn test, còn chia theo trip thì không rò rỉ. Mình vẫn chưa rõ nên thay ngưỡng dHash 2 thế nào khi tốc độ xe thay đổi nhiều. Một lỗi pipeline hiện chưa kiểm tra là tọa độ GPS nhảy bất khả thi trong khi `speed_mps` vẫn nằm trong khoảng hợp lệ; nên thêm kiểm tra quãng đường/tốc độ suy ra giữa hai điểm liên tiếp và cách ly kèm lý do.

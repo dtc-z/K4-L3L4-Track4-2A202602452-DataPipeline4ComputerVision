@@ -7,7 +7,7 @@
 
 ```bash
 cp .env.example .env                  # mở .env, đặt LAB_STUDENT_ID=<MSSV của bạn>
-unzip dataset/day09-data.zip           # gói dữ liệu nằm sẵn trong repo; giải nén tại thư mục gốc lab
+python3 scripts/fetch_data.py         # tải, kiểm tra SHA-256 và giải nén vào data/
 python3 scripts/check_data.py         # mọi file phải ĐÚNG
 docker compose --profile orchestrate up -d --build
 docker compose ps                     # chờ airflow, minio, postgres đều healthy
@@ -165,8 +165,8 @@ scripts/lab.sh step 5
 **Bài tập: một task bị sập rồi chạy lại.** Mỗi người một trip riêng, tính từ MSSV:
 
 ```bash
-scripts/lab.sh cli list-trips | python3 -c "import sys,json; t=json.load(sys.stdin); print(t[int(sys.argv[1]) % 26])" <MSSV>
-# in ra một trip, ví dụ trip-02134: ghi vào đầu REPORT.md
+scripts/lab.sh cli list-trips | python3 -c 'import json,re,sys; t=json.load(sys.stdin); n=re.search(r"\d+$",sys.argv[1]).group(); print(t[int(n) % len(t)])' <MSSV>
+# lấy cụm số ở cuối MSSV; ví dụ 2A202602452 cho ra trip-00003
 ```
 
 Đặt `LAB_FAIL_ONCE=<trip của bạn>` vào cuối file `.env`, rồi `docker compose --profile orchestrate up -d`. Trigger `day09_reset`, rồi `day09_video_pipeline`:
